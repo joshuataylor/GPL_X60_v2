@@ -1,0 +1,22 @@
+
+[ "add" = "$ACTION"  ] && {
+    
+    local vlan_enable
+    local vlan_id
+    local vlan_prio
+
+    config_load network
+    config_get vlan_enable vlan enable "0"
+    config_get vlan_id vlan id "0"
+    config_get vlan_prio vlan priority "0"
+    config_clear
+
+    if [ "$vlan_enable" == "1" ]; then
+        if [ "$INTERFACE" == "br-wan.""$vlan_id" ]; then
+            for i in $(seq 0 1 7); do 
+            	vconfig set_egress_map "$INTERFACE" "$i" "$vlan_prio"
+            done	
+        fi
+    fi
+
+}

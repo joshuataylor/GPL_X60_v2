@@ -1,0 +1,21 @@
+Source-Makefile: feeds/opensource/zlib/Makefile
+Package: zlib
+Version: 1.2.8-1
+Depends: +libc +SSP_SUPPORT:libssp +USE_GLIBC:librt +USE_GLIBC:libpthread 
+Conflicts: 
+Menu-Depends: 
+Provides: 
+Section: TP-LINK
+Category: TP-LINK iplatform apps
+Title: Library implementing the deflate compression method
+Maintainer: 
+Source: 
+License: ZLIB
+LicenseFiles: README
+Type: ipkg
+Description: Library implementing the deflate compression method
+http://www.zlib.net/
+
+@@
+
+

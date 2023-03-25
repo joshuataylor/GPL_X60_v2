@@ -1,0 +1,20 @@
+Source-Makefile: feeds/opensource/mtd/Makefile
+Package: mtd
+Version: 20
+Depends: +libc +SSP_SUPPORT:libssp +USE_GLIBC:librt +USE_GLIBC:libpthread +libubox
+Conflicts: 
+Menu-Depends: 
+Provides: 
+Section: utils
+Category: TP-LINK iplatform apps
+Title: Update utility for trx firmware images
+Maintainer: 
+Source: 
+License: GPLv2 GPLv2+
+Type: ipkg
+Description:  This package contains an utility useful to upgrade from other firmware or 
+ older OpenWrt releases.
+
+@@
+
+

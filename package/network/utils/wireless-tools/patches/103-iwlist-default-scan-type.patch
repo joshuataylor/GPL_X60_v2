@@ -1,0 +1,19 @@
+--- a/iwlist.c
++++ b/iwlist.c
+@@ -648,6 +648,7 @@
+ 
+   /* Clean up set args */
+   memset(&scanopt, 0, sizeof(scanopt));
++  scanopt.scan_type = IW_SCAN_TYPE_PASSIVE;
+ 
+   /* Parse command line arguments and extract options.
+    * Note : when we have enough options, we should use the parser
+@@ -701,7 +702,7 @@
+     }
+ 
+   /* Check if we have scan options */
+-  if(scanflags)
++  if(scanflags || scanopt.scan_type)
+     {
+       wrq.u.data.pointer = (caddr_t) &scanopt;
+       wrq.u.data.length = sizeof(scanopt);

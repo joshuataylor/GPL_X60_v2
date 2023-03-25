@@ -1,0 +1,21 @@
+Source-Makefile: feeds/opensource/6rd/Makefile
+Package: 6rd
+Submenu: IPv6
+Version: 2-1
+Depends: +libc +SSP_SUPPORT:libssp +USE_GLIBC:librt +USE_GLIBC:libpthread +kmod-ipv6 +kmod-sit
+Conflicts: 
+Menu-Depends: 
+Provides: 
+Section: ipv6
+Category: TP-LINK iplatform apps
+Title: 6rd configuration support Daemon
+Maintainer: Stéphan Kochen <stephan@kochen.nl>
+Source: 
+Type: ipkg
+Description: Provides support for 6rd tunnels in /etc/config/network.
+Refer to http://wiki.openwrt.org/doc/uci/network for
+configuration details.
+Stéphan Kochen <stephan@kochen.nl>
+@@
+
+

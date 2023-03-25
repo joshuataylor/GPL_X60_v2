@@ -1,0 +1,19 @@
+Source-Makefile: feeds/opensource/firewall/Makefile
+Package: firewall
+Version: 2-55.1
+Depends: +libc +SSP_SUPPORT:libssp +USE_GLIBC:librt +USE_GLIBC:libpthread +iptables +kmod-ipt-conntrack +kmod-ipt-nat
+Conflicts: 
+Menu-Depends: 
+Provides: 
+Section: net
+Category: TP-LINK iplatform apps
+Title: OpenWrt firewall
+Maintainer: Jo-Philipp Wich <xm@subsignal.org>
+Source: 
+Type: ipkg
+Description:  UCI based firewall for OpenWrt
+http://openwrt.org/
+Jo-Philipp Wich <xm@subsignal.org>
+@@
+
+

@@ -1,0 +1,31 @@
+--- a/tools/env/fw_env.h
++++ b/tools/env/fw_env.h
+@@ -40,17 +40,17 @@
+ #define CONFIG_BAUDRATE		115200
+ #endif
+ 
+-#ifndef CONFIG_BOOTDELAY
+-#define CONFIG_BOOTDELAY	5	/* autoboot after 5 seconds	*/
+-#endif
++//#ifndef CONFIG_BOOTDELAY
++//#define CONFIG_BOOTDELAY	5	/* autoboot after 5 seconds	*/
++//#endif
+ 
+-#ifndef CONFIG_BOOTCOMMAND
+-#define CONFIG_BOOTCOMMAND							\
+-	"bootp; "								\
+-	"setenv bootargs root=/dev/nfs nfsroot=${serverip}:${rootpath} "	\
+-	"ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}::off; "	\
+-	"bootm"
+-#endif
++//#ifndef CONFIG_BOOTCOMMAND
++//#define CONFIG_BOOTCOMMAND							\
++//	"bootp; "								\
++//	"setenv bootargs root=/dev/nfs nfsroot=${serverip}:${rootpath} "	\
++//	"ip=${ipaddr}:${serverip}:${gatewayip}:${netmask}:${hostname}::off; "	\
++//	"bootm"
++//#endif
+ 
+ extern int   fw_printenv(int argc, char *argv[]);
+ extern char *fw_getenv  (char *name);
+

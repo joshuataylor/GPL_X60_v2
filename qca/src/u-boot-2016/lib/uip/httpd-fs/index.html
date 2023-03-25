@@ -1,0 +1,141 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Firmware upgrade</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+    #m,
+    #hidden-get {
+        display: none;
+    }
+    .progress-bar-ctn {
+        position: relative;
+    }
+    .progress-bar-outer {
+        display: inline-block;
+        width: 400px;
+        height: 10px;
+        background-color: #e6e6e6;
+    }
+    .progress-bar-inner {
+        display: inline-block;
+        height: 10px;
+        background-color: #4ACBD6;
+        position: absolute;
+    }
+    .progress-bar-rate {}
+    </style>
+</head>
+
+<body>
+    <div id="m">
+        <h1>Firmware Upgrade</h1>
+        <p>Choose the firmware file from your local disk and click Upgrade.</p>
+        <iframe id="invisible-iframe" name="invisible-iframe" style="display: none"></iframe>
+        <form method="get" id="hidden-get" action="result.html"></form>
+        <form method="post" target="invisible-iframe" onsubmit="upload()" enctype="multipart/form-data" action="testurl">
+            <input onclick="return change()" id="submit-file" type="file" name="firmware">
+            <input onclick="return check()" disabled="true" id="submit-btn" type="submit" value="Upgrade">
+        </form>
+        <div id="progress-bar-ctn" class="progress-bar-ctn">
+            <div id="progress-bar-outer" class="progress-bar-outer">
+                <div id="progress-bar-inner" class="progress-bar-inner"></div>
+            </div>
+            <span id="progress-bar-rate" class="progress-bar-rate">0</span>%
+        </div>
+        <div class="i w">
+            <strong>Tips:</strong>
+            <ul>
+                <li>Do NOT power off your Decos during the upgrade.</li>
+                <li>Make sure the firmware file you choose is correct.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+<script>
+var updateTimer;
+
+function progressStart(options) {
+    options = options || {};
+    var updateInterval = options.updateInterval || 1000;
+    var rate = options.rate !== undefined ? options.rate : parseInt(document.getElementById("progress-bar-rate").innerHTML);
+    document.getElementById("progress-bar-rate").innerHTML = rate;
+    clearTimeout(updateTimer);
+    updateTimer = setTimeout(function() {
+        var rateNew = rate + 1;
+        rateNew = rateNew > 100 ? 100 : rateNew;
+
+        var widthOuter = document.getElementById("progress-bar-outer").offsetWidth;
+        var widthInner = rateNew / 100 * widthOuter;
+        document.getElementById("progress-bar-inner").style.width = widthInner + "px";
+        document.getElementById("progress-bar-rate").innerHTML = rateNew
+        options.rate = rateNew;
+        if (rateNew >= 100) {
+            if (options.finish) {
+                options.finish.call();
+            }
+        } else {
+            progressStart(options);
+        }
+    }, updateInterval);
+
+}
+
+function change() {
+    document.getElementById("submit-btn").disabled = false;
+    return true;
+}
+
+function check() {
+    if(document.getElementById("submit-file").value == null || document.getElementById("submit-file").value == "")
+    {
+        document.getElementById("submit-btn").disabled = true;
+        return false; 
+    }
+    else
+    {
+        document.getElementById("submit-btn").disabled = false;
+        return true;
+    }
+    
+}
+
+function upload(options) {
+    progressStart({
+        rate: 0,
+        updateInterval: 150 / 100 * 1000
+    });
+    
+}
+
+function uploadDone() {
+    progressStart({
+        updateInterval: 1,
+        finish: function() {
+            document.getElementById("hidden-get").submit();
+        }
+    });
+}
+
+window.onload = function() {
+    document.getElementById("m").style.display = "block";
+    var iframe = document.getElementById("invisible-iframe");
+    if (iframe.addEventListener) {
+		iframe.addEventListener("load", function() {
+    		uploadDone();
+		});
+    } else if (iframe.attachEvent) {
+        iframe.attachEvent("onload", function() {
+            uploadDone();
+        });
+    } else  {
+    	iframe.onload = function() {
+	    	uploadDone();
+	    };
+    }
+}
+</script>
+
+</html>

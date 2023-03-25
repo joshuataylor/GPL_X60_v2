@@ -1,0 +1,23 @@
+Source-Makefile: feeds/opensource/strace/Makefile
+Package: strace
+Submenu: Debug
+Version: 4.7-1
+Depends: +libc +SSP_SUPPORT:libssp +USE_GLIBC:librt +USE_GLIBC:libpthread 
+Conflicts: 
+Menu-Depends: 
+Provides: 
+Section: TP-LINK
+Category: TP-LINK iplatform apps
+Title: System call tracer
+Maintainer: 
+Source: strace-4.7.tar.xz
+License: BSD-3c
+LicenseFiles: COPYRIGHT
+Type: ipkg
+Description: A useful diagnostic, instructional, and debugging tool. Allows you to track what
+system calls a program makes while it is running.
+http://strace.sourceforge.net/
+
+@@
+
+

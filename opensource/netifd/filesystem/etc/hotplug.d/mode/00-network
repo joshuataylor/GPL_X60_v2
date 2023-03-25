@@ -1,0 +1,58 @@
+#!/bin/sh
+
+. /lib/functions.sh
+
+local config_changed="0"
+
+delete_br_wan_device() {
+	local sec_name="$1"
+	local id=""
+	id="$(uci get network.vlan.id)"
+	config_get name "$1" name
+	if [ "$name" == "br-wan.""$id" ];then
+		uci delete network."$sec_name"
+		config_changed="1"
+	fi
+}
+
+create_wanif(){
+    local id=""
+    local macaddr=""
+    local sec=""
+    id="$(uci get network_sync.vlan.id)"
+    macaddr="$(uci get network.wan.macaddr)"
+    sec="$(uci add network device)"
+
+    uci set network."$sec".enabled="1"
+    uci set network."$sec".name="br-wan.""$id"
+    uci set network."$sec".macaddr="$macaddr"
+    config_changed="1"
+}
+
+
+[ "$POINT" == "END" ] || exit 0;
+
+config_load network
+
+if [ "$SRCMODE" = "NONE" -o "$SRCMODE" = "RE" ] && [ "$DSTMODE" = "FAP" -o "$DSTMODE" = "HAP" ]; then
+    data="$(uci get network_sync.wan.ipaddr)"
+    olddata="$(uci get network.wan.ipaddr)"
+    if [ -n "$data" ] && [ "$data" != "$olddata" ]; then
+        #uci set network.wan.ipaddr="$data"
+        config_changed="1"
+    fi    
+elif [ "$SRCMODE" = "NONE" -o "$SRCMODE" = "FAP" -o "$SRCMODE" = "HAP" ] && [ "$DSTMODE" = "RE" ]; then
+    data="$(uci get network.wan.ipaddr)"
+	[ -n "$data" ] && {
+        #uci delete network.wan.ipaddr
+        config_changed="1"
+    }
+    config_foreach delete_br_wan_device device
+
+fi
+
+if [ "$config_changed" = "1" ]; then
+    uci commit network
+    /etc/init.d/network reload
+fi
+

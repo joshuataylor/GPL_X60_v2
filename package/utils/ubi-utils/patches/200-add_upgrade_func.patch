@@ -1,0 +1,126 @@
+--- a/ubi-utils/ubiformat.c
++++ b/ubi-utils/ubiformat.c
+@@ -60,9 +60,11 @@ struct args {
+ 	int ubi_ver;
+ 	uint32_t image_seq;
+ 	off_t image_sz;
++    off_t image_offs;
+ 	long long ec;
+ 	const char *image;
+ 	const char *node;
++    const char *flag_file;
+ 	int node_fd;
+ };
+ 
+@@ -86,7 +88,10 @@ static const char optionsstr[] =
+ "-n, --no-volume-table        only erase all eraseblock and preserve erase\n"
+ "                             counters, do not write empty volume table\n"
+ "-f, --flash-image=<file>     flash image file, or '-' for stdin\n"
++"-o, --flash-offset=<offs>    offset of the ubi image from start of the image\n"
++"                             file\n"
+ "-S, --image-size=<bytes>     bytes in input, if not reading from file\n"
++"-F, --flag-file=<file>       flash flag file\n"
+ "-e, --erase-counter=<value>  use <value> as the erase counter value for all\n"
+ "                             eraseblocks\n"
+ "-x, --ubi-ver=<num>          UBI version number to put to EC headers\n"
+@@ -102,7 +107,8 @@ static const char optionsstr[] =
+ 
+ static const char usage[] =
+ "Usage: " PROGRAM_NAME " <MTD device node file name> [-s <bytes>] [-O <offs>] [-n]\n"
+-"\t\t\t[-Q <num>] [-f <file>] [-S <bytes>] [-e <value>] [-x <num>] [-y] [-q] [-v] [-h]\n"
++"\t\t\t[-Q <num>] [-f <file>] [-o <offs>] [-S <bytes>] [-e <value>] [-x <num>]\n"
++"\t\t\t[-F <file>] [-y] [-q] [-v] [-h]\n"
+ "\t\t\t[--sub-page-size=<bytes>] [--vid-hdr-offset=<offs>] [--no-volume-table]\n"
+ "\t\t\t[--flash-image=<file>] [--image-size=<bytes>] [--erase-counter=<value>]\n"
+ "\t\t\t[--image-seq=<num>] [--ubi-ver=<num>] [--yes] [--quiet] [--verbose]\n"
+@@ -117,7 +123,9 @@ static const struct option long_options[
+ 	{ .name = "vid-hdr-offset",  .has_arg = 1, .flag = NULL, .val = 'O' },
+ 	{ .name = "no-volume-table", .has_arg = 0, .flag = NULL, .val = 'n' },
+ 	{ .name = "flash-image",     .has_arg = 1, .flag = NULL, .val = 'f' },
++	{ .name = "flash-offset",    .has_arg = 1, .flag = NULL, .val = 'o' },
+ 	{ .name = "image-size",      .has_arg = 1, .flag = NULL, .val = 'S' },
++    { .name = "flag-file",       .has_arg = 1, .flag = NULL, .val = 'F' },
+ 	{ .name = "yes",             .has_arg = 0, .flag = NULL, .val = 'y' },
+ 	{ .name = "erase-counter",   .has_arg = 1, .flag = NULL, .val = 'e' },
+ 	{ .name = "quiet",           .has_arg = 0, .flag = NULL, .val = 'q' },
+@@ -137,7 +145,7 @@ static int parse_opt(int argc, char * co
+ 		int key, error = 0;
+ 		unsigned long int image_seq;
+ 
+-		key = getopt_long(argc, argv, "nh?Vyqve:x:s:O:f:S:", long_options, NULL);
++		key = getopt_long(argc, argv, "nh?Vyqve:x:s:O:f:o:S:F:", long_options, NULL);
+ 		if (key == -1)
+ 			break;
+ 
+@@ -169,12 +177,22 @@ static int parse_opt(int argc, char * co
+ 			args.image = optarg;
+ 			break;
+ 
++        case 'o':
++            args.image_offs = simple_strtoul(optarg, &error);
++            if (error || args.image_offs < 0)
++                return errmsg("bad image offset: \"%s\"", optarg);
++            break;
++
+ 		case 'S':
+ 			args.image_sz = ubiutils_get_bytes(optarg);
+ 			if (args.image_sz <= 0)
+ 				return errmsg("bad image-size: \"%s\"", optarg);
+ 			break;
+ 
++        case 'F':
++            args.flag_file = optarg;
++            break;
++
+ 		case 'n':
+ 			args.novtbl = 1;
+ 			break;
+@@ -337,6 +355,18 @@ static int open_file(off_t *sz)
+ 	return fd;
+ }
+ 
++static int set_flag()
++{
++    FILE *fp;
++    fp = fopen(args.flag_file, "w");
++    if (!fp) {
++        errmsg("create file (%s) failed.", args.flag_file);
++        return -1;
++    }
++    fclose(fp);
++    return 0;
++}
++
+ static int read_all(int fd, void *buf, size_t len)
+ {
+ 	while (len > 0) {
+@@ -424,6 +454,19 @@ static int flash_image(libmtd_t libmtd,
+ 	fd = open_file(&st_size);
+ 	if (fd < 0)
+ 		return fd;
++    
++    if (args.image_offs + args.image_sz >= st_size) {
++        sys_errmsg("image from %lld to %lld out of file size (%lld bytes)",
++                (long long)args.image_offs, (long long)args.image_sz,
++                (long long)st_size);
++        goto out_close;
++    }
++    st_size = args.image_sz;
++    if (lseek(fd, args.image_offs, SEEK_SET) < 0) {
++        sys_errmsg("fail to seek file (%s) to offset (%lld)",
++                args.image, args.image_offs);
++        goto out_close;
++    }
+ 
+ 	img_ebs = st_size / mtd->eb_size;
+ 
+@@ -918,6 +961,9 @@ int main(int argc, char * const argv[])
+ 		err = format(libmtd, &mtd, &ui, si, err, 1);
+ 		if (err)
+ 			goto out_free;
++        if (args.flag_file) {
++            set_flag();
++        }
+ 	} else {
+ 		err = format(libmtd, &mtd, &ui, si, 0, args.novtbl);
+ 		if (err)

@@ -1,0 +1,39 @@
+#!/usr/bin/lua
+local dbg = require "luci.tools.debug"
+local json = require "luci.json"
+local sync  = require "luci.model.sync"
+
+local PACK = arg[1]
+local FILE_NAME = arg[2]
+
+dbg.print(PACK)
+dbg.print(FILE_NAME)
+
+if not PACK or not FILE_NAME then
+    dbg.print("generate group invalid input")
+    return false
+end
+
+group = sync.generate_group_for_other()
+if not group or not group.key or not group.gid then
+    dbg.print("sync create group fail")
+    return false
+end
+
+group.pack = tonumber(PACK)
+
+if not group.pack or type(group.pack) ~= "number" then
+    dbg.print("group pack is not valid")
+    return false
+end
+
+
+local f = io.open(FILE_NAME, "w")
+if not f then
+    dbg.print("generate group open file fail")
+    return false
+end
+
+local str = json.encode(group)
+f:write(str)
+f:close()

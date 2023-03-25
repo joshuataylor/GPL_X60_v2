@@ -1,0 +1,51 @@
+#!/bin/sh
+
+
+vlan_enable=$(uci get network.vlan.enable)
+vlan_id=$(uci get network.vlan.id)
+device_id=$(getfirm DEV_ID)
+role=$(uci get bind_device_list."$device_id".role)
+internetif=$(uci get network.internet.ifname)
+wanif=$(uci get network.wan.ifname)
+change=0
+flag=0
+
+#mode=$(grep 'RE' /tmp/work_mode)
+
+#compatable with old firmware
+
+
+if [ "$vlan_enable" == "1" ]; then
+	[ "$role" == "AP" ] && {
+		[ "$ACTION" == "update" -a "$INTERFACE" == "lan" ]  && {
+			[ -n "$DEVICE" ] && {
+                flag=1
+			}
+		}
+
+        [ "$ACTION" == "prepare" -a "$INTERFACE" == "wan" ]  && {
+            [ -n "$DEVICE" ] && {
+                flag=1
+            }
+        }
+
+        [ "$ACTION" == "clear" -a "$INTERFACE" == "lan" ]  && {
+            flag=1
+        }
+    }
+fi
+
+if [ "$flag" = 1 ]; then
+    if [ -n "$vlan_id" ] && [ "$vlan_id" != "0" ] && [ "$wanif" != "br-wan.$vlan_id" ]; then
+        uci set network_sync.wan.ifname="br-wan.$vlan_id"
+        [ -n "$internetif" ] && {
+            uci set network_sync.internet.ifname="br-wan.$vlan_id"
+        }
+        change=1
+    fi
+fi
+
+if [ "$change" == 1 ]; then
+    uci commit network_sync
+    /etc/init.d/network reload
+fi

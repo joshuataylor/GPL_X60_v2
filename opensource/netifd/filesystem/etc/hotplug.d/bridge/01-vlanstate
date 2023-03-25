@@ -1,0 +1,228 @@
+#!/bin/sh
+
+. /lib/functions.sh
+. /lib/guest-eth/guest-eth.sh
+. /lib/iptv/iptv.sh
+. /lib/network/vlan_func.sh
+
+
+
+local used_vid
+local vid_p4
+local vid_p5
+used_vid=$(get_used_vlan)
+
+vlan_enable=$(uci get network.vlan.enable 2>/dev/null)
+vlan_id=$(uci get network.vlan.id 2>/dev/null)
+vlan_tag=$(uci get network.vlan.tag_802_1q 2>/dev/null)
+device_id=$(getfirm DEV_ID)
+role=$(uci get bind_device_list."$device_id".role 2>/dev/null)
+#mode=$(grep 'RE' /tmp/work_mode)
+
+guest_vlan_enable=$(uci get wifi.guest.vlan_enable 2>/dev/null)
+guest_vlan_id=$(uci get wifi.guest.vlan_id 2>/dev/null)
+
+
+config_load iptv_v2
+config_get iptv_enable info enable 0
+config_get iptv_vid info iptv_vid
+config_get iptv_prio info iptv_prio
+config_get iptv_type info iptv_type "normal"
+config_clear
+
+config_load sysmode
+config_get system_mode sysmode mode "Router"
+config_clear
+
+local lock_vlan="/var/run/vlan.lock"
+lock $lock_vlan
+trap "" INT TERM ABRT QUIT ALRM 
+
+local is_change=0
+if [ "$vlan_enable" == "1" ]; then
+	[  "$role" == "AP" ] && {
+		[ "$ACTION" == "update" -a "$INTERFACE" == "lan" ]  && {
+			[ -n "$DEVICE" ] && {
+				
+				[ "$DEVICE" == "eth0 " ] && {
+                    if [ "$vlan_tag" == "0" ]; then
+                        __set_port4_wvid "$vlan_id" "u"
+                    else
+                        __set_port4_wvid "$vlan_id" "t"
+                    fi
+
+                    vid_p5=$(__set_port5_lvid "${used_vid}" "u")
+                    append used_vid "$vid_p5"
+                    echo "01_vlan_state: select p5: $vid_p5" > /dev/console
+                    is_change=1
+				} || {
+                    if [ "$vlan_tag" == "0" ]; then
+                        __set_port5_wvid "$vlan_id" "u"
+                    else
+                        __set_port5_wvid "$vlan_id" "t"
+                    fi
+
+                    vid_p4=$(__set_port4_lvid "${used_vid}" "u")
+                    append used_vid "$vid_p4"
+                    echo "01_vlan_state: select p4: $vid_p4" > /dev/console
+                    is_change=1
+				}
+			}
+		}
+
+		[ "$ACTION" == "clear" -a "$INTERFACE" == "lan" ]  && {
+
+            if [ "$vlan_tag" == "0" ]; then
+                __set_both_wvid_tag "$vlan_id" "u"
+            else
+                __set_both_wvid_tag "$vlan_id" "t"
+            fi
+            is_change=1
+
+		}
+
+	}
+else
+
+    vid_p4=$(__set_port4_lvid "${used_vid}" "u")
+    append used_vid "$vid_p4"
+    echo "01_vlan_state else: select p4: $vid_p4" > /dev/console
+
+    vid_p5=$(__set_port5_lvid "${used_vid}" "u")
+    append used_vid "$vid_p5"
+    echo "01_vlan_state else: select p5: $vid_p5" > /dev/console
+
+    is_change=1
+fi
+
+#iptv vlan set
+if [ "$iptv_enable" == "1" ]; then
+	[  "$role" == "AP" ] && {
+		[ "$ACTION" == "update" -a "$INTERFACE" == "lan" ] && {
+			[ -n "$DEVICE" ] && {
+
+				[ "$DEVICE" == "eth0 " ] && {
+
+                    __iptv_set_vlan "4" "$iptv_vid"
+                    is_change=1
+
+                    delete_invalid_iptv_wan_iface "eth1" "$iptv_vid"
+
+                    if [[ "$system_mode" != "AP" ]]; then
+                        add_iptv_wan_iface "eth1" "$iptv_vid" "$iptv_prio"
+                    fi
+
+				} || {
+
+                    __iptv_set_vlan "5" "$iptv_vid"
+                    is_change=1
+
+                    delete_invalid_iptv_wan_iface "eth0" "$iptv_vid"
+
+                    if [[ "$system_mode" != "AP" ]]; then
+                        add_iptv_wan_iface "eth0" "$iptv_vid" "$iptv_prio"
+                    fi
+				}
+			}
+		}
+
+		[ "$ACTION" == "clear" -a "$INTERFACE" == "lan" ]  && {
+
+            if __iptv_clear_vlan; then
+                is_change=1
+            fi
+
+            delete_invalid_iptv_wan_iface "none" "$iptv_vid"
+		}
+
+	}
+else
+
+    if __iptv_clear_vlan; then
+        is_change=1
+    fi
+
+    delete_invalid_iptv_wan_iface "none" "$iptv_vid"
+fi
+
+if [ "$guest_vlan_enable" == "1" ]; then
+
+	[  "$role" == "AP" -a "$iptv_enable" == "0" -a "$iptv_type" == "normal" ] && {
+
+        [ "$ACTION" == "update" -a "$INTERFACE" == "lan" ]  && {
+            [ -n "$DEVICE" ] && {
+                
+                [ "$DEVICE" == "eth0 " ] && {
+                    echo "update eth0 port guest vlan_id br-lan" > /dev/console
+
+                    __guest_set_vlan "5" "$guest_vlan_id"
+                    is_change=1
+                    
+                    del_invalid_guest_eth "lan" "eth0"
+                    if [[ "$system_mode" != "AP" ]]; then
+                        add_eth_guest "eth0"
+                    fi
+
+                } || {
+                    echo "update eth1 port guest vlan_id br-lan" > /dev/console
+                    
+                    __guest_set_vlan "4" "$guest_vlan_id"
+                    is_change=1
+
+                    del_invalid_guest_eth "lan" "eth1"
+                    if [[ "$system_mode" != "AP" ]]; then
+                        add_eth_guest "eth1"
+                    fi
+                    
+                }
+
+            }
+        }
+
+        [ "$ACTION" == "clear" -a "$INTERFACE" == "lan" ]  && {
+            echo "clear lan guest vlan id" > /dev/console
+            if __guest_clear_vlan; then
+                is_change=1
+            fi
+            del_invalid_guest_eth "lan" "none"
+
+        }
+    }
+
+	[ "$role" == "RE" ] && {
+        [ "$ACTION" == "update" -a "$INTERFACE" == "lan" ]  && {
+            [ -n "$DEVICE" ] && {
+                echo "update eth0 eth1 port guest vlan_id br-lan" > /dev/console
+
+                __guest_set_both_vlan
+                is_change=1
+                
+                del_invalid_guest_eth "lan" "eth0 eth1"
+                if [[ "$system_mode" != "AP" ]]; then
+                    add_eth_guest "eth0 eth1"
+                fi
+
+            }
+        }
+    }
+else
+
+    if __guest_clear_vlan; then
+        is_change=1
+    fi
+
+    del_invalid_guest_eth "lan" "none"
+fi
+
+if [ "$is_change" == 1 ]; then
+    uci commit -c /etc/vlan.d
+    switch_name=$(uci -c /etc/vlan.d get vlan.@switch[0].name)
+    echo "hotplug config vlan ==============" > /dev/console 
+    vlan_support=$(uci get profile.switch.switch_vlan -c /etc/profile.d)
+    if [ "$vlan_support" == "yes" ]; then
+        swconfig dev $switch_name load /etc/vlan.d/vlan
+    fi
+fi
+
+trap - INT TERM ABRT QUIT ALRM 
+lock -u $lock_vlan

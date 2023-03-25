@@ -1,0 +1,10 @@
+[ ifup = "$ACTION" ] && [ "$INTERFACE" = "lan" ] && {
+    local mode=$(uci get sysmode.sysmode.mode)  
+    if [ "$mode" != "Router" ]; then
+        local bridge_name
+        config_load network
+        config_get bridge_name lan ifname "br-lan"
+        echo -n "$bridge_name" > /proc/net/statistics/bridge_name
+    fi
+
+}
